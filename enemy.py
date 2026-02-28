@@ -54,6 +54,7 @@ class Enemy:
         self._path: List[Tuple[int, int]] = []
         self._path_target: Tuple[int, int] | None = None
         self._noise_pos: Tuple[int, int] | None = None
+        self.blinded_turns: int = 0
 
     # ------------------------------------------------------------------ #
     #  Public interface                                                     #
@@ -65,16 +66,20 @@ class Enemy:
 
     def fov_array(self, game_map) -> np.ndarray:
         """Return a boolean (width, height) array of tiles visible to this enemy."""
-        return _fov(game_map, self.x, self.y)
+        radius = 1 if self.blinded_turns > 0 else SIGHT_RADIUS
+        return _fov(game_map, self.x, self.y, radius=radius)
 
     def take_turn(self, game_map, all_enemies: list) -> None:
+        if self.blinded_turns > 0:
+            self.blinded_turns -= 1
         if self.mode == Mode.PATROL:
             self._patrol_turn(game_map)
         else:
             self._search_turn(game_map, all_enemies)
 
     def can_see_player(self, px: int, py: int, game_map) -> bool:
-        return bool(_fov(game_map, self.x, self.y)[px, py])
+        radius = 1 if self.blinded_turns > 0 else SIGHT_RADIUS
+        return bool(_fov(game_map, self.x, self.y, radius=radius)[px, py])
 
     def reset_to_patrol(self) -> None:
         """Force this enemy back to patrol mode (e.g. after spotting the player)."""
@@ -265,9 +270,9 @@ class Enemy:
 #  Module-level helpers                                                #
 # ------------------------------------------------------------------ #
 
-def _fov(game_map, x: int, y: int) -> np.ndarray:
+def _fov(game_map, x: int, y: int, radius: int = SIGHT_RADIUS) -> np.ndarray:
     transparency = game_map.tiles["transparent"].astype(bool)
-    return tcod.map.compute_fov(transparency, (x, y), radius=SIGHT_RADIUS)
+    return tcod.map.compute_fov(transparency, (x, y), radius=radius)
 
 
 def _dist(x1: int, y1: int, x2: int, y2: int) -> float:

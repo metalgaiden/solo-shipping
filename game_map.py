@@ -58,6 +58,7 @@ SPELL_COLORS = {
     "camo":     ( 50, 200, 180),   # teal
     "decoy":    (220, 160,  30),   # amber
     "silence":  ( 70, 110, 220),   # blue
+    "flash":    (255, 240,  80),   # bright yellow
 }
 
 

@@ -119,6 +119,7 @@ def render_all(
     decoy_primed: bool = False,
     mouse_tile: Tuple[int, int] | None = None,
     silence_steps: int = 0,
+    flash_primed: bool = False,
 ) -> None:
     console.clear()
     game_map.render(console)
@@ -153,7 +154,7 @@ def render_all(
 
     # Spell HUD — bottom of screen (hidden until a spell is picked up)
     if active_spell is not None:
-        base_colors = {"passwall": (180, 80, 220), "camo": (50, 200, 180), "decoy": (220, 160, 30), "silence": (70, 110, 220)}
+        base_colors = {"passwall": (180, 80, 220), "camo": (50, 200, 180), "decoy": (220, 160, 30), "silence": (70, 110, 220), "flash": (255, 240, 80)}
         if passwall_primed:
             color = (255, 230, 60)
             label = f"[F] {active_spell.capitalize()}  x{spell_charges}  [ready]"
@@ -166,6 +167,9 @@ def render_all(
         elif silence_steps > 0:
             color = (140, 180, 255)
             label = f"[F] {active_spell.capitalize()}  x{spell_charges}  [silent - {silence_steps} steps]"
+        elif flash_primed:
+            color = (255, 255, 150)
+            label = f"[F] {active_spell.capitalize()}  x{spell_charges}  [primed]"
         else:
             color = base_colors.get(active_spell, (200, 200, 200))
             label = f"[F] {active_spell.capitalize()}  x{spell_charges}"
@@ -261,6 +265,13 @@ def show_help_screen(console, context) -> None:
                 [
                     "Press F to activate.",
                     "Your next 10 steps make no noise.",
+                ],
+            ),
+            (
+                "Flash", (255, 240, 80),
+                [
+                    "Press F to prime, then step into a guard's sight.",
+                    "Blinds every guard that can see you for 20 turns.",
                 ],
             ),
         ]
@@ -368,6 +379,7 @@ def main() -> None:
         camo_active: bool = False
         decoy_primed: bool = False
         silence_steps: int = 0
+        flash_primed: bool = False
         mouse_tile: Tuple[int, int] | None = None
 
         while True:
@@ -377,7 +389,7 @@ def main() -> None:
                 active_spell=active_spell, spell_charges=spell_charges,
                 passwall_primed=passwall_primed, camo_active=camo_active,
                 decoy_primed=decoy_primed, mouse_tile=mouse_tile,
-                silence_steps=silence_steps,
+                silence_steps=silence_steps, flash_primed=flash_primed,
             )
             context.present(console)
 
@@ -403,7 +415,7 @@ def main() -> None:
                         for enemy in enemies:
                             enemy.take_turn(game_map, enemies)
                         spotter = None if camo_active else next(
-                            (e for e in enemies if e.can_see_player(player_x, player_y, game_map)),
+                            (e for e in enemies if not e.blinded_turns and e.can_see_player(player_x, player_y, game_map)),
                             None,
                         )
                         if spotter is not None:
@@ -425,6 +437,7 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
+                            flash_primed = False
                             break
 
                 if isinstance(event, tcod.event.KeyDown):
@@ -450,6 +463,9 @@ def main() -> None:
                             silence_steps = 10
                             spell_charges -= 1
                             log.info(f"Silence activated — charges remaining: {spell_charges}")
+                        elif active_spell == "flash" and spell_charges > 0:
+                            flash_primed = not flash_primed
+                            log.debug(f"Flash {'primed' if flash_primed else 'cancelled'}")
 
                     if event.sym in MOVE_KEYS:
                         dx, dy = MOVE_KEYS[event.sym]
@@ -526,6 +542,7 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
+                            flash_primed = False
                             break  # restart the render loop for the new level
 
                         # Noise — always consume the tile; silence suppresses the alert.
@@ -548,13 +565,23 @@ def main() -> None:
                         if noise_warning_turns > 0:
                             noise_warning_turns -= 1
 
+                        # Flash trigger — fires when primed and an enemy can see the player
+                        if flash_primed and moved:
+                            seeing = [e for e in enemies if e.can_see_player(player_x, player_y, game_map)]
+                            if seeing:
+                                for e in seeing:
+                                    e.blinded_turns = 20
+                                spell_charges -= 1
+                                flash_primed = False
+                                log.info(f"Flash fired — blinded {len(seeing)} enemies, charges remaining: {spell_charges}")
+
                         # Enemy turns
                         for enemy in enemies:
                             enemy.take_turn(game_map, enemies)
 
-                        # Caught check — camo makes the player invisible to enemies
+                        # Caught check — camo and blinded enemies cannot spot the player
                         spotter = None if camo_active else next(
-                            (e for e in enemies if e.can_see_player(player_x, player_y, game_map)),
+                            (e for e in enemies if not e.blinded_turns and e.can_see_player(player_x, player_y, game_map)),
                             None,
                         )
                         if spotter is not None:
@@ -579,6 +606,7 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
+                            flash_primed = False
                             break
 
 
