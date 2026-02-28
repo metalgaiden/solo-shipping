@@ -36,6 +36,11 @@ MOVE_KEYS = {
     tcod.event.KeySym.s: (0,  1),
     tcod.event.KeySym.a: (-1, 0),
     tcod.event.KeySym.d: ( 1, 0),
+    # QEZC diagonals
+    tcod.event.KeySym.q: (-1, -1),
+    tcod.event.KeySym.e: ( 1, -1),
+    tcod.event.KeySym.z: (-1,  1),
+    tcod.event.KeySym.c: ( 1,  1),
     # Numpad (including diagonals)
     tcod.event.KeySym.KP_8: (0, -1),
     tcod.event.KeySym.KP_2: (0,  1),
@@ -225,7 +230,7 @@ def show_help_screen(console, context) -> None:
         console.print(4, 5, "MOVEMENT", fg=HEAD)
         bindings = [
             ("Arrow keys / WASD / Numpad 8426", "Move"),
-            ("Numpad 7, 9, 1, 3             ", "Move diagonally"),
+            ("Q, E, Z, C / Numpad 7, 9, 1, 3", "Move diagonally"),
             ("Space                         ", "Wait one turn"),
             ("Esc                           ", "Quit"),
         ]
@@ -557,7 +562,10 @@ def main() -> None:
                                 log.info(f"Noisy tile triggered at ({player_x},{player_y})")
                                 alerted = any(
                                     enemy.alert_to_noise(player_x, player_y, game_map.rooms)
-                                    for enemy in enemies
+                                    for enemy in sorted(
+                                        enemies,
+                                        key=lambda e: (e.x - player_x) ** 2 + (e.y - player_y) ** 2,
+                                    )
                                 )
                                 if alerted:
                                     noise_warning_turns = 3
