@@ -59,6 +59,7 @@ SPELL_COLORS = {
     "decoy":    (220, 160,  30),   # amber
     "silence":  ( 70, 110, 220),   # blue
     "flash":    (255, 240,  80),   # bright yellow
+    "swap":     (100, 255, 160),   # mint green
 }
 
 

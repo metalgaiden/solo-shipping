@@ -12,8 +12,9 @@ def _asset(filename: str) -> str:
 
 import tcod
 import tcod.event
+import tcod.map
 
-from enemy import Enemy, Mode
+from enemy import Enemy, Mode, SIGHT_RADIUS
 from game_map import GameMap, generate_dungeon, SPELL_COLORS
 from logger import log
 from scene import play_scene
@@ -124,7 +125,6 @@ def render_all(
     decoy_primed: bool = False,
     mouse_tile: Tuple[int, int] | None = None,
     silence_steps: int = 0,
-    flash_primed: bool = False,
 ) -> None:
     console.clear()
     game_map.render(console)
@@ -159,7 +159,7 @@ def render_all(
 
     # Spell HUD — bottom of screen (hidden until a spell is picked up)
     if active_spell is not None:
-        base_colors = {"passwall": (180, 80, 220), "camo": (50, 200, 180), "decoy": (220, 160, 30), "silence": (70, 110, 220), "flash": (255, 240, 80)}
+        base_colors = {"passwall": (180, 80, 220), "camo": (50, 200, 180), "decoy": (220, 160, 30), "silence": (70, 110, 220), "flash": (255, 240, 80), "swap": (100, 255, 160)}
         if passwall_primed:
             color = (255, 230, 60)
             label = f"[F] {active_spell.capitalize()}  x{spell_charges}  [ready]"
@@ -172,9 +172,6 @@ def render_all(
         elif silence_steps > 0:
             color = (140, 180, 255)
             label = f"[F] {active_spell.capitalize()}  x{spell_charges}  [silent - {silence_steps} steps]"
-        elif flash_primed:
-            color = (255, 255, 150)
-            label = f"[F] {active_spell.capitalize()}  x{spell_charges}  [primed]"
         else:
             color = base_colors.get(active_spell, (200, 200, 200))
             label = f"[F] {active_spell.capitalize()}  x{spell_charges}"
@@ -275,8 +272,15 @@ def show_help_screen(console, context) -> None:
             (
                 "Flash", (255, 240, 80),
                 [
-                    "Press F to prime, then step into a guard's sight.",
-                    "Blinds every guard that can see you for 20 turns.",
+                    "Press F to blind all guards in your line of sight.",
+                    "Blinded guards cannot spot you for 20 turns.",
+                ],
+            ),
+            (
+                "Swap", (100, 255, 160),
+                [
+                    "Press F to instantly swap with the nearest guard in sight.",
+                    "You take their position; they take yours.",
                 ],
             ),
         ]
@@ -384,7 +388,6 @@ def main() -> None:
         camo_active: bool = False
         decoy_primed: bool = False
         silence_steps: int = 0
-        flash_primed: bool = False
         mouse_tile: Tuple[int, int] | None = None
 
         while True:
@@ -394,7 +397,7 @@ def main() -> None:
                 active_spell=active_spell, spell_charges=spell_charges,
                 passwall_primed=passwall_primed, camo_active=camo_active,
                 decoy_primed=decoy_primed, mouse_tile=mouse_tile,
-                silence_steps=silence_steps, flash_primed=flash_primed,
+                silence_steps=silence_steps,
             )
             context.present(console)
 
@@ -442,12 +445,25 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
-                            flash_primed = False
                             break
 
                 if isinstance(event, tcod.event.KeyDown):
                     if event.sym == tcod.event.KeySym.ESCAPE:
                         raise SystemExit()
+
+                    if event.sym == tcod.event.KeySym.r:
+                        log.info("Manual reset")
+                        level = 1
+                        active_spell = random.choice(list(SPELL_COLORS))
+                        spell_charges = 1
+                        game_map, player_x, player_y, goal, enemies = create_level()
+                        noise_warning_turns = 0
+                        passwall_primed = False
+                        camo_active = False
+                        decoy_primed = False
+                        silence_steps = 0
+                        flash_primed = False
+                        break
 
                     if event.sym == tcod.event.KeySym.f:
                         if active_spell == "passwall" and spell_charges > 0:
@@ -469,8 +485,35 @@ def main() -> None:
                             spell_charges -= 1
                             log.info(f"Silence activated — charges remaining: {spell_charges}")
                         elif active_spell == "flash" and spell_charges > 0:
-                            flash_primed = not flash_primed
-                            log.debug(f"Flash {'primed' if flash_primed else 'cancelled'}")
+                            player_fov = tcod.map.compute_fov(
+                                game_map.tiles["transparent"].astype(bool),
+                                (player_x, player_y),
+                                radius=0,
+                            )
+                            targets = [e for e in enemies if player_fov[e.x, e.y]]
+                            if targets:
+                                for e in targets:
+                                    e.blinded_turns = 20
+                                spell_charges -= 1
+                                log.info(f"Flash fired — blinded {len(targets)} enemies, charges remaining: {spell_charges}")
+                        elif active_spell == "swap" and spell_charges > 0:
+                            player_fov = tcod.map.compute_fov(
+                                game_map.tiles["transparent"].astype(bool),
+                                (player_x, player_y),
+                                radius=0,  # 0 = unlimited — pure line of sight, no range cap
+                            )
+                            visible = [e for e in enemies if player_fov[e.x, e.y]]
+                            if visible:
+                                target = min(visible, key=lambda e: (e.x - player_x) ** 2 + (e.y - player_y) ** 2)
+                                px, py = player_x, player_y
+                                player_x, player_y = target.x, target.y
+                                target.x, target.y = px, py
+                                target._path = []
+                                target._path_target = None
+                                if target.mode == Mode.PATROL:
+                                    target._start_search_at(game_map.rooms, noise_pos=(player_x, player_y))
+                                spell_charges -= 1
+                                log.info(f"Swap used with E{target.eid} — player now at ({player_x},{player_y}), charges remaining: {spell_charges}")
 
                     if event.sym in MOVE_KEYS:
                         dx, dy = MOVE_KEYS[event.sym]
@@ -547,7 +590,6 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
-                            flash_primed = False
                             break  # restart the render loop for the new level
 
                         # Noise — always consume the tile; silence suppresses the alert.
@@ -572,16 +614,6 @@ def main() -> None:
 
                         if noise_warning_turns > 0:
                             noise_warning_turns -= 1
-
-                        # Flash trigger — fires when primed and an enemy can see the player
-                        if flash_primed and moved:
-                            seeing = [e for e in enemies if e.can_see_player(player_x, player_y, game_map)]
-                            if seeing:
-                                for e in seeing:
-                                    e.blinded_turns = 20
-                                spell_charges -= 1
-                                flash_primed = False
-                                log.info(f"Flash fired — blinded {len(seeing)} enemies, charges remaining: {spell_charges}")
 
                         # Enemy turns
                         for enemy in enemies:
@@ -614,7 +646,6 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
-                            flash_primed = False
                             break
 
 
