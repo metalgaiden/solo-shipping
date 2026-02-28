@@ -1,0 +1,14 @@
+# LEVEL 5 — plays when the player reaches level 5.
+#
+# Format:  SPEAKER: Dialogue text here.
+# Speakers: SOLO, BIG_BOSS
+# Lines starting with # are comments and are ignored.
+# Blank lines are ignored.
+# Keep each line under ~70 characters for clean wrapping.
+
+BIG_BOSS: Solo. You're halfway there. I'm impressed.
+SOLO: The guards are getting smarter. They're starting to search in patterns.
+BIG_BOSS: Our intel suggests there's a new security chief running things on the lower floors.
+SOLO: Great. Any good news?
+BIG_BOSS: You're still alive. That's always good news in this line of work.
+SOLO: Comforting. I'll keep moving.

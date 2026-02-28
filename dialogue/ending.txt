@@ -1,0 +1,15 @@
+# ENDING — plays when the player completes level 10. The game ends after this.
+#
+# Format:  SPEAKER: Dialogue text here.
+# Speakers: SOLO, BIG_BOSS
+# Lines starting with # are comments and are ignored.
+# Blank lines are ignored.
+# Keep each line under ~70 characters for clean wrapping.
+
+SOLO: Package delivered. I'm at the extraction point.
+BIG_BOSS: ...Well done, Solo. I didn't think you'd make it.
+SOLO: Thanks for the vote of confidence.
+BIG_BOSS: The client is satisfied. The shipment arrived intact.
+SOLO: You're never going to tell me what was in it, are you?
+BIG_BOSS: Get some rest. There's another job next week.
+SOLO: There always is.

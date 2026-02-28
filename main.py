@@ -16,6 +16,7 @@ import tcod.event
 from enemy import Enemy, Mode
 from game_map import GameMap, generate_dungeon, SPELL_COLORS
 from logger import log
+from scene import play_scene
 
 SCREEN_WIDTH = 80
 SCREEN_HEIGHT = 50
@@ -126,7 +127,7 @@ def render_all(
     for enemy in enemies:
         tint = (55, 10, 10) if enemy.mode == Mode.SEARCH else (45, 30, 5)
         fov = enemy.fov_array(game_map) & game_map.tiles["walkable"]
-        console.tiles_rgb["bg"][fov] = tint
+        console.rgb["bg"][fov] = tint
 
     # Goal tile
     console.print(goal[0], goal[1], ">", fg=(50, 255, 100))
@@ -352,6 +353,8 @@ def main() -> None:
         if not show_title_screen(console, context):
             return
 
+        play_scene(console, context, _asset(os.path.join("dialogue", "intro.txt")))
+
         level = 1
         log.info("=== Game started ===")
         game_map, player_x, player_y, goal, enemies = create_level()
@@ -385,11 +388,11 @@ def main() -> None:
                     raise SystemExit()
 
                 if isinstance(event, tcod.event.MouseMotion):
-                    mouse_tile = (int(event.tile.x), int(event.tile.y))
+                    mouse_tile = (int(event.position.x), int(event.position.y))
 
                 if isinstance(event, tcod.event.MouseButtonDown):
                     if decoy_primed and event.button == tcod.event.MouseButton.LEFT:
-                        nx, ny = int(event.tile.x), int(event.tile.y)
+                        nx, ny = int(event.position.x), int(event.position.y)
                         if game_map.in_bounds(nx, ny):
                             for enemy in enemies:
                                 enemy.alert_to_noise(nx, ny, game_map.rooms)
@@ -503,11 +506,20 @@ def main() -> None:
                             log.info(f"Picked up {sp} x{game_map.pickup.charges} — {active_spell} x{spell_charges}")
                             game_map.pickup = None
 
-                        # Goal reached → next level
+                        # Goal reached → next level (or ending)
                         if (player_x, player_y) == goal:
                             log.info(f"Level {level} complete — player reached goal at ({player_x},{player_y})")
                             show_level_complete(console, context, level)
+
+                            if level >= 10:
+                                play_scene(console, context, _asset(os.path.join("dialogue", "ending.txt")))
+                                return  # game ends after level 10
+
                             level += 1
+
+                            if level == 5:
+                                play_scene(console, context, _asset(os.path.join("dialogue", "level_5.txt")))
+
                             game_map, player_x, player_y, goal, enemies = create_level()
                             noise_warning_turns = 0
                             passwall_primed = False

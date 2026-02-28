@@ -1,0 +1,15 @@
+# INTRO — plays when the game starts, before level 1.
+#
+# Format:  SPEAKER: Dialogue text here.
+# Speakers: SOLO, BIG_BOSS
+# Lines starting with # are comments and are ignored.
+# Blank lines are ignored.
+# Keep each line under ~70 characters for clean wrapping.
+
+BIG_BOSS: Solo. You've been selected for the most dangerous shipping run of your career.
+SOLO: Another day, another package. What are we delivering this time, Boss?
+BIG_BOSS: That information is classified. All you need to know is it must reach the drop point.
+SOLO: Guards?
+BIG_BOSS: Plenty. Stay out of their sight lines and don't make any noise. You know the drill.
+SOLO: How many floors?
+BIG_BOSS: Ten. Don't die.

@@ -94,7 +94,7 @@ class GameMap:
         return False
 
     def render(self, console) -> None:
-        console.tiles_rgb[0 : self.width, 0 : self.height] = self.tiles["dark"]
+        console.rgb[0 : self.width, 0 : self.height] = self.tiles["dark"]
         # Noisy tiles are tinted tan so the player has a chance to spot them
         for x, y in self.noisy_tiles:
             console.print(x, y, ".", fg=(170, 130, 60))
