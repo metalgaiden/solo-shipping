@@ -2,6 +2,7 @@
 import os
 import random
 import sys
+import time
 from typing import Tuple
 
 
@@ -14,7 +15,7 @@ import tcod
 import tcod.event
 import tcod.map
 
-from enemy import Enemy, Mode, SIGHT_RADIUS
+from enemy import Enemy, Mode, SIGHT_RADIUS, _compute_path
 from game_map import GameMap, generate_dungeon, SPELL_COLORS
 from logger import log
 from scene import play_scene
@@ -304,22 +305,32 @@ def show_help_screen(console, context) -> None:
                 return
 
 
-def show_title_screen(console, context) -> bool:
-    """Render the title screen. Returns True to start, False to quit."""
-    TITLE     = "Solo's Adventures in Shipping"
+def show_title_screen(console, context) -> str:
+    """Render the title screen. Returns 'start', 'quit', or 'demo'."""
+    IDLE_TIMEOUT = 8.0
+    TITLE_STR = "Solo's Adventures in Shipping"
     TAGLINE   = "a stealth roguelike"
     OPT_START = "[Enter]   Begin Mission"
     OPT_HELP  = "[H]       How to Play"
     OPT_EXIT  = "[Esc]     Exit"
+    DEMO_HINT = "or wait to watch a demo"
 
     ty = SCREEN_HEIGHT // 3
+    deadline = time.monotonic() + IDLE_TIMEOUT
 
     while True:
-        console.clear()
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return "demo"
 
+        # Animate dots to signal the timer is running
+        dot_count = int((IDLE_TIMEOUT - remaining) * 0.6) % 4
+        hint = DEMO_HINT + "." * dot_count + " " * (3 - dot_count)
+
+        console.clear()
         console.print(
-            (SCREEN_WIDTH - len(TITLE)) // 2, ty,
-            TITLE, fg=(220, 190, 80),
+            (SCREEN_WIDTH - len(TITLE_STR)) // 2, ty,
+            TITLE_STR, fg=(220, 190, 80),
         )
         console.print(
             (SCREEN_WIDTH - len(TAGLINE)) // 2, ty + 2,
@@ -337,19 +348,120 @@ def show_title_screen(console, context) -> bool:
             (SCREEN_WIDTH - len(OPT_EXIT)) // 2, ty + 10,
             OPT_EXIT, fg=(160, 160, 160),
         )
+        console.print(
+            (SCREEN_WIDTH - len(DEMO_HINT) - 3) // 2, ty + 13,
+            hint, fg=(90, 90, 90),
+        )
 
         context.present(console)
 
-        for event in tcod.event.wait():
+        for event in tcod.event.get():
             if isinstance(event, tcod.event.Quit):
-                return False
+                return "quit"
             if isinstance(event, tcod.event.KeyDown):
+                deadline = time.monotonic() + IDLE_TIMEOUT  # reset on any key
                 if event.sym in (tcod.event.KeySym.RETURN, tcod.event.KeySym.KP_ENTER):
-                    return True
+                    return "start"
                 if event.sym == tcod.event.KeySym.h:
                     show_help_screen(console, context)
+                    deadline = time.monotonic() + IDLE_TIMEOUT
                 if event.sym == tcod.event.KeySym.ESCAPE:
-                    return False
+                    return "quit"
+
+        time.sleep(0.05)  # ~20 fps polling — keeps the title screen responsive
+
+
+# ------------------------------------------------------------------ #
+#  Attract-mode demo                                                    #
+# ------------------------------------------------------------------ #
+
+def run_demo(console, context) -> None:
+    """Play the game with a simple AI until the player presses any key."""
+    STEP_INTERVAL = 0.18  # seconds between AI moves
+    BANNER = "  DEMO \u2014 Press any key to play  "
+
+    game_map, player_x, player_y, goal, enemies = create_level()
+    last_step = time.monotonic()
+
+    while True:
+        # Exit on any keypress
+        for event in tcod.event.get():
+            if isinstance(event, tcod.event.Quit):
+                raise SystemExit()
+            if isinstance(event, tcod.event.KeyDown):
+                return
+
+        now = time.monotonic()
+        if now - last_step >= STEP_INTERVAL:
+            last_step = now
+
+            # AI: flee from nearby guards, otherwise head to goal.
+            # "Threatened" = any enemy within twice the sight radius.
+            threatened = any(
+                (e.x - player_x) ** 2 + (e.y - player_y) ** 2 <= (SIGHT_RADIUS + 2) ** 2
+                for e in enemies
+            )
+            if threatened:
+                # Greedy flee: step to whichever adjacent walkable tile
+                # maximises total squared distance from all enemies.
+                # This guarantees the very next step moves away, unlike
+                # pathfinding to a distant target whose route might pass
+                # through the enemy first.
+                def _flee_score(nx, ny):
+                    return sum(
+                        (e.x - nx) ** 2 + (e.y - ny) ** 2 for e in enemies
+                    )
+                best_pos = (player_x, player_y)
+                best_score = _flee_score(player_x, player_y)
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
+                        nx, ny = player_x + dx, player_y + dy
+                        if game_map.is_walkable(nx, ny):
+                            s = _flee_score(nx, ny)
+                            if s > best_score:
+                                best_score = s
+                                best_pos = (nx, ny)
+                if best_pos != (player_x, player_y):
+                    log.debug(
+                        f"Demo AI flee: ({player_x},{player_y}) -> {best_pos}"
+                    )
+                player_x, player_y = best_pos
+            else:
+                path = _compute_path(game_map, player_x, player_y, *goal)
+                if path:
+                    player_x, player_y = path[0]
+
+            # Trigger noise naturally so guards react as they would in real play
+            if game_map.trigger_noise(player_x, player_y):
+                for enemy in sorted(
+                    enemies,
+                    key=lambda e: (e.x - player_x) ** 2 + (e.y - player_y) ** 2,
+                ):
+                    enemy.alert_to_noise(player_x, player_y, game_map.rooms)
+
+            # Enemy turns
+            for enemy in enemies:
+                enemy.take_turn(game_map, enemies)
+
+            # Reset on caught or goal reached — just start a fresh level silently
+            caught = any(
+                not e.blinded_turns and e.can_see_player(player_x, player_y, game_map)
+                for e in enemies
+            )
+            if caught or (player_x, player_y) == goal:
+                game_map, player_x, player_y, goal, enemies = create_level()
+
+        render_all(console, game_map, player_x, player_y, enemies, goal, level=1)
+        console.print(
+            (SCREEN_WIDTH - len(BANNER)) // 2,
+            SCREEN_HEIGHT - 1,
+            BANNER,
+            fg=(255, 220, 60),
+            bg=(0, 0, 0),
+        )
+        context.present(console)
 
 
 # ------------------------------------------------------------------ #
@@ -370,8 +482,14 @@ def main() -> None:
     ) as context:
         console = tcod.console.Console(SCREEN_WIDTH, SCREEN_HEIGHT, order="F")
 
-        if not show_title_screen(console, context):
-            return
+        while True:
+            result = show_title_screen(console, context)
+            if result == "quit":
+                return
+            if result == "demo":
+                run_demo(console, context)
+                continue
+            break  # "start"
 
         play_scene(console, context, _asset(os.path.join("dialogue", "intro.txt")))
 
