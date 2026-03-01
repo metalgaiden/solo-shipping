@@ -272,7 +272,12 @@ class Enemy:
 
 def _fov(game_map, x: int, y: int, radius: int = SIGHT_RADIUS) -> np.ndarray:
     transparency = game_map.tiles["transparent"].astype(bool)
-    return tcod.map.compute_fov(transparency, (x, y), radius=radius)
+    fov = tcod.map.compute_fov(transparency, (x, y), radius=radius)
+    if radius > 0:
+        w, h = fov.shape
+        dist_sq = (np.arange(w)[:, None] - x) ** 2 + (np.arange(h)[None, :] - y) ** 2
+        fov &= dist_sq <= radius * radius
+    return fov
 
 
 def _dist(x1: int, y1: int, x2: int, y2: int) -> float:
