@@ -245,7 +245,7 @@ def show_help_screen(console, context) -> None:
                 "Passwall", (180, 80, 220),
                 [
                     "Press F to prime, then step into a wall.",
-                    "Teleports through walls 1-2 tiles thick.",
+                    "Teleports through walls 1-3 tiles thick.",
                 ],
             ),
             (
@@ -398,7 +398,7 @@ def run_demo(console, context) -> None:
             # AI: flee from nearby guards, otherwise head to goal.
             # "Threatened" = any enemy within twice the sight radius.
             threatened = any(
-                (e.x - player_x) ** 2 + (e.y - player_y) ** 2 <= (SIGHT_RADIUS + 2) ** 2
+                0 < len(_compute_path(game_map, e.x, e.y, player_x, player_y)) <= SIGHT_RADIUS + 2
                 for e in enemies
             )
             if threatened:
@@ -526,16 +526,19 @@ def main() -> None:
                     raise SystemExit()
 
                 if isinstance(event, tcod.event.MouseMotion):
-                    mouse_tile = (int(event.position.x), int(event.position.y))
+                    mouse_tile = (int(event.tile.x), int(event.tile.y))
 
                 if isinstance(event, tcod.event.MouseButtonDown):
+                    log.debug(f"MouseButtonDown: btn={event.button} decoy={decoy_primed} mouse_tile={mouse_tile}")
                     if decoy_primed and event.button == tcod.event.MouseButton.LEFT:
-                        nx, ny = int(event.position.x), int(event.position.y)
-                        if game_map.in_bounds(nx, ny):
+                        if mouse_tile is not None and game_map.in_bounds(*mouse_tile):
+                            nx, ny = mouse_tile
                             for enemy in enemies:
                                 enemy.alert_to_noise(nx, ny, game_map.rooms)
                             spell_charges -= 1
                             log.info(f"Decoy noise at ({nx},{ny}) — charges remaining: {spell_charges}")
+                        else:
+                            log.debug(f"Decoy placement failed: mouse_tile={mouse_tile}")
                         decoy_primed = False
                         # Decoy use is a player action — enemies take a turn
                         for enemy in enemies:
@@ -642,10 +645,11 @@ def main() -> None:
                         if dx != 0 or dy != 0:
                             decoy_primed = False
 
-                        # Passwall: pass through walls up to 2 tiles thick
+                        # Passwall: pass through walls up to 3 tiles thick
                         if passwall_primed and (dx != 0 or dy != 0) and not game_map.is_walkable(new_x, new_y):
                             b2x, b2y = player_x + 2 * dx, player_y + 2 * dy
                             b3x, b3y = player_x + 3 * dx, player_y + 3 * dy
+                            b4x, b4y = player_x + 4 * dx, player_y + 4 * dy
                             if game_map.is_walkable(b2x, b2y):
                                 player_x, player_y = b2x, b2y   # 1-tile wall
                                 spell_charges -= 1
@@ -656,6 +660,11 @@ def main() -> None:
                                 spell_charges -= 1
                                 moved = True
                                 log.info(f"Passwall used (2-tile wall) — charges remaining: {spell_charges}")
+                            elif game_map.is_walkable(b4x, b4y):
+                                player_x, player_y = b4x, b4y   # 3-tile wall
+                                spell_charges -= 1
+                                moved = True
+                                log.info(f"Passwall used (3-tile wall) — charges remaining: {spell_charges}")
                             else:
                                 moved = False  # wall too thick, spell fizzles
                             passwall_primed = False

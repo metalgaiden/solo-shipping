@@ -197,6 +197,12 @@ class Enemy:
 
         if self._path:
             self.x, self.y = self._path.pop(0)
+        else:
+            # Path is empty: either already at the target or it's unreachable.
+            # Advance past this room so the enemy doesn't freeze here forever.
+            log.debug(f"E{self.eid} stuck at room {self.search_idx} — skipping")
+            self.search_idx += 1
+            self._path_target = None
 
     def _return_to_patrol(self) -> None:
         """Transition back to patrol, resuming from the nearest patrol waypoint."""
