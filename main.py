@@ -570,7 +570,8 @@ def main() -> None:
 
                 if isinstance(event, tcod.event.KeyDown):
                     if event.sym == tcod.event.KeySym.ESCAPE:
-                        raise SystemExit()
+                        show_help_screen(console, context)
+                        break
 
                     if event.sym == tcod.event.KeySym.r:
                         log.info("Manual reset")
