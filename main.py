@@ -131,8 +131,11 @@ def render_all(
     console.clear()
     game_map.render(console)
 
-    # Vision cones — tint the background of every floor tile each enemy can see
+    # Vision cones — tint the background of every floor tile each enemy can see.
+    # Blinded enemies show no cone at all.
     for enemy in enemies:
+        if enemy.blinded_turns:
+            continue
         tint = (55, 10, 10) if enemy.mode == Mode.SEARCH else (45, 30, 5)
         fov = enemy.fov_array(game_map) & game_map.tiles["walkable"]
         console.rgb["bg"][fov] = tint
