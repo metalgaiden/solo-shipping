@@ -240,17 +240,22 @@ def _wait_for_keypress(context) -> None:
                 return
 
 
-def play_scene(console, context, filepath: str) -> None:
+def play_scene(console, context, filepath: str, variables: dict | None = None) -> None:
     """Display a full dialogue scene, one beat at a time.
 
     Each line in the file is one beat; long lines are word-wrapped and
     paginated so no text is ever clipped.
+
+    Optional `variables` dict is substituted into dialogue text using
+    str.format_map, e.g. {diagonal_count} in the file becomes the value.
     """
     lines = parse_scene(filepath)
     if not lines:
         return
 
     for speaker_key, text in lines:
+        if variables:
+            text = text.format_map(variables)
         name_color   = CHAR_COLORS.get(speaker_key, (200, 200, 200))
         display_name = CHAR_DISPLAY.get(
             speaker_key, speaker_key.replace("_", " ").title()

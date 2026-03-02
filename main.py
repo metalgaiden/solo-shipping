@@ -507,7 +507,7 @@ def main() -> None:
         camo_active: bool = False
         decoy_primed: bool = False
         silence_steps: int = 0
-        moved_diagonally: bool = False
+        moved_diagonally: int = 0
         mouse_tile: Tuple[int, int] | None = None
 
         while True:
@@ -568,7 +568,7 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
-                            moved_diagonally = False
+                            moved_diagonally = 0
                             break
 
                 if isinstance(event, tcod.event.KeyDown):
@@ -588,7 +588,7 @@ def main() -> None:
                     #     decoy_primed = False
                     #     silence_steps = 0
                     #     flash_primed = False
-                    #     moved_diagonally = False
+                    #     moved_diagonally = 0
                     #     break
 
                     if event.sym == tcod.event.KeySym.f:
@@ -685,7 +685,7 @@ def main() -> None:
 
                         # Track whether the player has ever moved diagonally
                         if moved and dx != 0 and dy != 0:
-                            moved_diagonally = True
+                            moved_diagonally += 1
 
                         # Silence counts down on each actual step
                         if moved and (dx != 0 or dy != 0) and silence_steps > 0:
@@ -715,7 +715,8 @@ def main() -> None:
                                 if not moved_diagonally:
                                     play_scene(console, context, _asset(os.path.join("dialogue", "secret_ending.txt")))
                                 else:
-                                    play_scene(console, context, _asset(os.path.join("dialogue", "ending.txt")))
+                                    diag_str = f"{moved_diagonally} time" if moved_diagonally == 1 else f"{moved_diagonally} times"
+                                    play_scene(console, context, _asset(os.path.join("dialogue", "ending.txt")), variables={"diagonals": diag_str})
                                 return  # game ends after level 10
 
                             level += 1
@@ -785,7 +786,7 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
-                            moved_diagonally = False
+                            moved_diagonally = 0
                             break
 
 
