@@ -28,6 +28,7 @@ NUM_ENEMIES = 3
 MOVE_KEYS = {
     # Wait in place
     tcod.event.KeySym.SPACE: (0,  0),
+    tcod.event.KeySym.KP_5:  (0,  0),
     # Arrow keys
     tcod.event.KeySym.UP:    (0, -1),
     tcod.event.KeySym.DOWN:  (0,  1),
@@ -229,7 +230,7 @@ def show_help_screen(console, context) -> None:
         bindings = [
             ("Arrow keys / WASD / Numpad 8426", "Move"),
             ("Q, E, Z, C / Numpad 7, 9, 1, 3", "Move diagonally"),
-            ("Space                         ", "Wait one turn"),
+            ("Space / Numpad 5              ", "Wait one turn"),
             ("Esc                           ", "Quit"),
         ]
         for i, (keys, action) in enumerate(bindings):
@@ -573,19 +574,19 @@ def main() -> None:
                         show_help_screen(console, context)
                         break
 
-                    if event.sym == tcod.event.KeySym.r:
-                        log.info("Manual reset")
-                        level = 1
-                        active_spell = random.choice(list(SPELL_COLORS))
-                        spell_charges = 1
-                        game_map, player_x, player_y, goal, enemies = create_level()
-                        noise_warning_turns = 0
-                        passwall_primed = False
-                        camo_active = False
-                        decoy_primed = False
-                        silence_steps = 0
-                        flash_primed = False
-                        break
+                    # if event.sym == tcod.event.KeySym.r:
+                    #     log.info("Manual reset")
+                    #     level = 1
+                    #     active_spell = random.choice(list(SPELL_COLORS))
+                    #     spell_charges = 1
+                    #     game_map, player_x, player_y, goal, enemies = create_level()
+                    #     noise_warning_turns = 0
+                    #     passwall_primed = False
+                    #     camo_active = False
+                    #     decoy_primed = False
+                    #     silence_steps = 0
+                    #     flash_primed = False
+                    #     break
 
                     if event.sym == tcod.event.KeySym.f:
                         if active_spell == "passwall" and spell_charges > 0:
