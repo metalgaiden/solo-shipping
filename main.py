@@ -252,7 +252,7 @@ def show_run_complete(console, context, elapsed: float, action_count: int) -> No
                 return
 
 
-def show_help_screen(console, context) -> None:
+def show_help_screen(console, context) -> str | None:
     """Display a controls and spell reference. Any key returns to the title."""
     GOLD   = (220, 190,  80)
     HEAD   = (190, 190, 190)
@@ -275,6 +275,7 @@ def show_help_screen(console, context) -> None:
             ("Arrow keys / WASD / Numpad 8426", "Move"),
             ("Q, E, Z, C / Numpad 7, 9, 1, 3", "Move diagonally"),
             ("Space / Numpad 5              ", "Wait one turn"),
+            ("R                             ", "Reset run"),
             ("Esc                           ", "Quit"),
         ]
         for i, (keys, action) in enumerate(bindings):
@@ -368,8 +369,10 @@ def show_help_screen(console, context) -> None:
                 elif event.sym == tcod.event.KeySym.PERIOD:
                     audio.set_sfx_volume(sv + 0.1)
                     audio.play_sfx("magic")
+                elif event.sym == tcod.event.KeySym.R:
+                    return "reset"
                 else:
-                    return
+                    return None
 
 
 def show_title_screen(console, context) -> str:
@@ -649,23 +652,21 @@ def main() -> None:
 
                 if isinstance(event, tcod.event.KeyDown):
                     if event.sym == tcod.event.KeySym.ESCAPE:
-                        show_help_screen(console, context)
+                        if show_help_screen(console, context) == "reset":
+                            log.info("Manual reset from help screen")
+                            level = 1
+                            active_spell = random.choice(list(SPELL_COLORS))
+                            spell_charges = 1
+                            game_map, player_x, player_y, goal, enemies = create_level()
+                            noise_warning_turns = 0
+                            passwall_primed = False
+                            camo_active = False
+                            decoy_primed = False
+                            silence_steps = 0
+                            moved_diagonally = 0
+                            run_start_time = time.monotonic()
+                            action_count = 0
                         break
-
-                    # if event.sym == tcod.event.KeySym.r:
-                    #     log.info("Manual reset")
-                    #     level = 1
-                    #     active_spell = random.choice(list(SPELL_COLORS))
-                    #     spell_charges = 1
-                    #     game_map, player_x, player_y, goal, enemies = create_level()
-                    #     noise_warning_turns = 0
-                    #     passwall_primed = False
-                    #     camo_active = False
-                    #     decoy_primed = False
-                    #     silence_steps = 0
-                    #     flash_primed = False
-                    #     moved_diagonally = 0
-                    #     break
 
                     if event.sym == tcod.event.KeySym.F:
                         try:

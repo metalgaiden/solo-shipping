@@ -8,7 +8,7 @@ _bgm_path = None
 _sfx = {}
 _initialized = False
 _music_volume = 0.6
-_sfx_volume = 1.0
+_sfx_volume = 0.6
 
 def init_audio():
     global _initialized, _bgm_path, _sfx
