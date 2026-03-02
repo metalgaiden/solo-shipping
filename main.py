@@ -173,7 +173,7 @@ def render_all(
             label = f"[F] {active_spell.capitalize()}  x{spell_charges}  [click to place]"
         elif silence_steps > 0:
             color = (140, 180, 255)
-            label = f"[F] {active_spell.capitalize()}  x{spell_charges}  [silent - {silence_steps} steps]"
+            label = f"[F] {active_spell.capitalize()}  x{spell_charges}  [active]"
         else:
             color = base_colors.get(active_spell, (200, 200, 200))
             label = f"[F] {active_spell.capitalize()}  x{spell_charges}"
@@ -246,7 +246,7 @@ def show_help_screen(console, context) -> None:
                 "Passwall", (180, 80, 220),
                 [
                     "Press F to prime, then step into a wall.",
-                    "Teleports through walls 1-3 tiles thick.",
+                    "Teleports through walls of any thickness.",
                 ],
             ),
             (
@@ -268,7 +268,7 @@ def show_help_screen(console, context) -> None:
                 "Silence", (70, 110, 220),
                 [
                     "Press F to activate.",
-                    "Your next 10 steps make no noise.",
+                    "Your footsteps make no noise for the rest of the level.",
                 ],
             ),
             (
@@ -607,7 +607,7 @@ def main() -> None:
                             decoy_primed = not decoy_primed
                             log.debug(f"Decoy {'primed' if decoy_primed else 'cancelled'}")
                         elif active_spell == "silence" and spell_charges > 0 and silence_steps == 0:
-                            silence_steps = 10
+                            silence_steps = 1
                             spell_charges -= 1
                             log.info(f"Silence activated — charges remaining: {spell_charges}")
                         elif active_spell == "flash" and spell_charges > 0:
@@ -650,28 +650,26 @@ def main() -> None:
                         if dx != 0 or dy != 0:
                             decoy_primed = False
 
-                        # Passwall: pass through walls up to 3 tiles thick
+                        # Passwall: scan in the move direction for the first walkable tile
                         if passwall_primed and (dx != 0 or dy != 0) and not game_map.is_walkable(new_x, new_y):
-                            b2x, b2y = player_x + 2 * dx, player_y + 2 * dy
-                            b3x, b3y = player_x + 3 * dx, player_y + 3 * dy
-                            b4x, b4y = player_x + 4 * dx, player_y + 4 * dy
-                            if game_map.is_walkable(b2x, b2y):
-                                player_x, player_y = b2x, b2y   # 1-tile wall
+                            dest = None
+                            step = 2
+                            while True:
+                                tx, ty = player_x + step * dx, player_y + step * dy
+                                if not game_map.in_bounds(tx, ty):
+                                    break
+                                if game_map.is_walkable(tx, ty):
+                                    dest = (tx, ty)
+                                    break
+                                step += 1
+                            if dest:
+                                wall_thickness = step - 1
+                                player_x, player_y = dest
                                 spell_charges -= 1
                                 moved = True
-                                log.info(f"Passwall used (1-tile wall) — charges remaining: {spell_charges}")
-                            elif game_map.is_walkable(b3x, b3y):
-                                player_x, player_y = b3x, b3y   # 2-tile wall
-                                spell_charges -= 1
-                                moved = True
-                                log.info(f"Passwall used (2-tile wall) — charges remaining: {spell_charges}")
-                            elif game_map.is_walkable(b4x, b4y):
-                                player_x, player_y = b4x, b4y   # 3-tile wall
-                                spell_charges -= 1
-                                moved = True
-                                log.info(f"Passwall used (3-tile wall) — charges remaining: {spell_charges}")
+                                log.info(f"Passwall used ({wall_thickness}-tile wall) — charges remaining: {spell_charges}")
                             else:
-                                moved = False  # wall too thick, spell fizzles
+                                moved = False  # no floor found before map edge, spell fizzles
                             passwall_primed = False
                         else:
                             passwall_primed = False
@@ -687,10 +685,6 @@ def main() -> None:
                         if moved and dx != 0 and dy != 0:
                             moved_diagonally += 1
 
-                        # Silence counts down on each actual step
-                        if moved and (dx != 0 or dy != 0) and silence_steps > 0:
-                            silence_steps -= 1
-                            log.debug(f"Silence: {silence_steps} steps remaining")
 
                         # Pickup collection
                         if game_map.pickup and (player_x, player_y) == (game_map.pickup.x, game_map.pickup.y):
