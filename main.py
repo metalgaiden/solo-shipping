@@ -308,6 +308,7 @@ def show_help_screen(console, context) -> None:
                 [
                     "Press F to activate.",
                     "Your footsteps make no noise for the rest of the level.",
+                    "Deactivates if you pick up a different spell.",
                 ],
             ),
             (
@@ -741,6 +742,7 @@ def main() -> None:
                                 spell_charges = game_map.pickup.charges
                                 passwall_primed = False
                                 camo_active = False
+                                silence_steps = 0
                             else:
                                 spell_charges += game_map.pickup.charges
                             log.info(f"Picked up {sp} x{game_map.pickup.charges} — {active_spell} x{spell_charges}")

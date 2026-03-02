@@ -264,8 +264,7 @@ def generate_dungeon(
     if pickup_pool:
         pickup_room = random.choice(pickup_pool)
         spell = random.choice(list(SPELL_COLORS))
-        charges = 1 if spell == "silence" else 2
-        dungeon.pickup = Pickup(*pickup_room.center, spell=spell, charges=charges)
+        dungeon.pickup = Pickup(*pickup_room.center, spell=spell, charges=2)
 
     player_start = rooms[0].center if rooms else (map_width // 2, map_height // 2)
 
