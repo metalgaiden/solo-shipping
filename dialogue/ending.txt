@@ -9,9 +9,9 @@
 SOLO: Package delivered. I'm at the extraction point.
 BIG_BOSS: ...Well done, Solo. I didn't think you'd make it.
 SOLO: Thanks for the vote of confidence.
+BIG_BOSS: One note for the debrief, you cut corners {diagonals} out there.
+SOLO: I prefer to call it adaptive routing.
 BIG_BOSS: The client is satisfied. The shipment arrived intact.
 SOLO: You're never going to tell me what was in it, are you?
-BIG_BOSS: One note for the debrief — you cut corners {diagonals} out there.
-SOLO: I prefer to call it adaptive routing.
 BIG_BOSS: Get some rest. There's another job next week.
 SOLO: There always is.
