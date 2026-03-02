@@ -1,8 +1,13 @@
 ﻿import os
+import sys
 import pygame
 from glob import glob
 
-SOUNDS_DIR = os.path.join(os.path.dirname(__file__), "sounds")
+def resource_path(relative_path):
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative_path)
+
+SOUNDS_DIR = resource_path("sounds")
 
 _bgm_path = None
 _sfx = {}

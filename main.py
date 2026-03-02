@@ -6,6 +6,9 @@ import time
 import audio
 from typing import Tuple
 
+def resource_path(relative_path):
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative_path)
 
 def _asset(filename: str) -> str:
     """Resolve a bundled asset path for both normal runs and PyInstaller builds."""
@@ -539,7 +542,7 @@ audio.play_bgm()
 
 def main() -> None:
     tileset = tcod.tileset.load_tilesheet(
-        _asset("dejavu10x10_gs_tc.png"), 32, 8, tcod.tileset.CHARMAP_TCOD
+    _asset("dejavu10x10_gs_tc.png"), 32, 8, tcod.tileset.CHARMAP_TCOD
     )
 
     with tcod.context.new(
