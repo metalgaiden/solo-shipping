@@ -3,6 +3,7 @@ import os
 import random
 import sys
 import time
+import audio
 from typing import Tuple
 
 
@@ -35,15 +36,15 @@ MOVE_KEYS = {
     tcod.event.KeySym.LEFT:  (-1, 0),
     tcod.event.KeySym.RIGHT: ( 1, 0),
     # WASD
-    tcod.event.KeySym.w: (0, -1),
-    tcod.event.KeySym.s: (0,  1),
-    tcod.event.KeySym.a: (-1, 0),
-    tcod.event.KeySym.d: ( 1, 0),
+    tcod.event.KeySym.W: (0, -1),
+    tcod.event.KeySym.S: (0,  1),
+    tcod.event.KeySym.A: (-1, 0),
+    tcod.event.KeySym.D: ( 1, 0),
     # QEZC diagonals
-    tcod.event.KeySym.q: (-1, -1),
-    tcod.event.KeySym.e: ( 1, -1),
-    tcod.event.KeySym.z: (-1,  1),
-    tcod.event.KeySym.c: ( 1,  1),
+    tcod.event.KeySym.Q: (-1, -1),
+    tcod.event.KeySym.E: ( 1, -1),
+    tcod.event.KeySym.Z: (-1,  1),
+    tcod.event.KeySym.C: ( 1,  1),
     # Numpad (including diagonals)
     tcod.event.KeySym.KP_8: (0, -1),
     tcod.event.KeySym.KP_2: (0,  1),
@@ -468,6 +469,8 @@ def run_demo(console, context) -> None:
 # ------------------------------------------------------------------ #
 #  Main                                                                 #
 # ------------------------------------------------------------------ #
+audio.init_audio()
+audio.play_bgm()
 
 def main() -> None:
     tileset = tcod.tileset.load_tilesheet(
@@ -538,6 +541,7 @@ def main() -> None:
                             for enemy in enemies:
                                 enemy.alert_to_noise(nx, ny, game_map.rooms)
                             spell_charges -= 1
+                            audio.play_sfx('magic')
                             log.info(f"Decoy noise at ({nx},{ny}) — charges remaining: {spell_charges}")
                         else:
                             log.debug(f"Decoy placement failed: mouse_tile={mouse_tile}")
@@ -591,7 +595,12 @@ def main() -> None:
                     #     moved_diagonally = 0
                     #     break
 
-                    if event.sym == tcod.event.KeySym.f:
+                    if event.sym == tcod.event.KeySym.F:
+                        try:
+                            import audio
+                        except Exception:
+                            pass
+
                         if active_spell == "passwall" and spell_charges > 0:
                             passwall_primed = not passwall_primed
                             log.debug(f"Passwall {'primed' if passwall_primed else 'cancelled'}")
@@ -601,16 +610,19 @@ def main() -> None:
                                 log.debug("Camo cancelled")
                             elif spell_charges > 0:
                                 camo_active = True
+                                audio.play_sfx('magic')
                                 spell_charges -= 1
                                 log.info(f"Camo activated — charges remaining: {spell_charges}")
                         elif active_spell == "decoy" and spell_charges > 0:
                             decoy_primed = not decoy_primed
                             log.debug(f"Decoy {'primed' if decoy_primed else 'cancelled'}")
                         elif active_spell == "silence" and spell_charges > 0 and silence_steps == 0:
+                            audio.play_sfx('magic')
                             silence_steps = 1
                             spell_charges -= 1
                             log.info(f"Silence activated — charges remaining: {spell_charges}")
                         elif active_spell == "flash" and spell_charges > 0:
+                            audio.play_sfx('magic')
                             player_fov = tcod.map.compute_fov(
                                 game_map.tiles["transparent"].astype(bool),
                                 (player_x, player_y),
@@ -638,6 +650,7 @@ def main() -> None:
                                 target._path_target = None
                                 if target.mode == Mode.PATROL:
                                     target._start_search_at(game_map.rooms, noise_pos=(player_x, player_y))
+                                audio.play_sfx('magic')
                                 spell_charges -= 1
                                 log.info(f"Swap used with E{target.eid} — player now at ({player_x},{player_y}), charges remaining: {spell_charges}")
 
@@ -667,6 +680,7 @@ def main() -> None:
                                 player_x, player_y = dest
                                 spell_charges -= 1
                                 moved = True
+                                audio.play_sfx('magic')
                                 log.info(f"Passwall used ({wall_thickness}-tile wall) — charges remaining: {spell_charges}")
                             else:
                                 moved = False  # no floor found before map edge, spell fizzles
@@ -704,7 +718,11 @@ def main() -> None:
                         if (player_x, player_y) == goal:
                             log.info(f"Level {level} complete — player reached goal at ({player_x},{player_y})")
                             show_level_complete(console, context, level)
-
+                            try:
+                                import audio
+                                audio.play_sfx('level_clear')
+                            except Exception:
+                                pass
                             if level >= 10:
                                 if not moved_diagonally:
                                     play_scene(console, context, _asset(os.path.join("dialogue", "secret_ending.txt")))
@@ -763,6 +781,11 @@ def main() -> None:
                                 f"E{spotter.eid} spotted player at ({player_x},{player_y}) "
                                 f"— resetting level {level}"
                             )
+                            try:
+                                import audio
+                                audio.play_sfx('game_over')
+                            except Exception:
+                                pass
                             spotter.mode = Mode.SEARCH  # render red on the caught frame
                             show_caught_message(
                                 console, context, game_map,

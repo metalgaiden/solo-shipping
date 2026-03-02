@@ -102,6 +102,11 @@ class Enemy:
             nearby = list(all_rooms)
         random.shuffle(nearby)
         log.info(f"E{self.eid} alerted by noise at ({nx},{ny}), dist={dist:.1f}, searching {len(nearby)} rooms")
+        try:
+            import audio
+            audio.play_sfx('alert_guard')
+        except Exception:
+            pass
         self._start_search_at(nearby, noise_pos=(nx, ny))
         return True
 
