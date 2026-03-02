@@ -127,6 +127,8 @@ def render_all(
     decoy_primed: bool = False,
     mouse_tile: Tuple[int, int] | None = None,
     silence_steps: int = 0,
+    elapsed: float = 0.0,
+    action_count: int = 0,
 ) -> None:
     console.clear()
     game_map.render(console)
@@ -159,6 +161,12 @@ def render_all(
 
     # HUD — level on line 0, noise warning on line 1 (shown for a few turns)
     console.print(1, 0, f"Level {level}", fg=(200, 200, 200), bg=(0, 0, 0))
+
+    # Speedrun timer — top right
+    mins = int(elapsed) // 60
+    secs = elapsed % 60
+    timer_str = f"{mins}:{secs:05.2f}  {action_count}t"
+    console.print(SCREEN_WIDTH - len(timer_str) - 1, 0, timer_str, fg=(150, 150, 150), bg=(0, 0, 0))
     if noise_warning:
         console.print(1, 1, "! Your footsteps echo !", fg=(255, 200, 50), bg=(0, 0, 0))
 
@@ -213,6 +221,34 @@ def show_caught_message(
 
 def show_level_complete(console, context, level: int) -> None:
     _overlay_message(console, context, f" Level {level} complete!  Press any key to continue. ", (100, 220, 255))
+
+
+def show_run_complete(console, context, elapsed: float, action_count: int) -> None:
+    """Display the final speedrun stats and wait for a keypress."""
+    mins = int(elapsed) // 60
+    secs = elapsed % 60
+    time_str = f"{mins}:{secs:05.2f}"
+
+    console.clear(fg=(255, 255, 255), bg=(0, 0, 0))
+    cy = SCREEN_HEIGHT // 2 - 3
+
+    heading = "Run Complete!"
+    console.print((SCREEN_WIDTH - len(heading)) // 2, cy,     heading,               fg=(220, 190, 80))
+    console.print((SCREEN_WIDTH - len(time_str)) // 2,  cy + 2, time_str,            fg=(210, 210, 210))
+    console.print((SCREEN_WIDTH - 10) // 2,             cy + 3, "real time",         fg=(100, 100, 100))
+    turns_str = f"{action_count} turns"
+    console.print((SCREEN_WIDTH - len(turns_str)) // 2, cy + 5, turns_str,           fg=(210, 210, 210))
+
+    prompt = "[Any key]  Continue"
+    console.print((SCREEN_WIDTH - len(prompt)) // 2, cy + 8, prompt, fg=(90, 90, 90))
+
+    context.present(console)
+    while True:
+        for event in tcod.event.wait():
+            if isinstance(event, tcod.event.Quit):
+                raise SystemExit()
+            if isinstance(event, tcod.event.KeyDown):
+                return
 
 
 def show_help_screen(console, context) -> None:
@@ -511,6 +547,8 @@ def main() -> None:
         decoy_primed: bool = False
         silence_steps: int = 0
         moved_diagonally: int = 0
+        run_start_time: float = time.monotonic()
+        action_count: int = 0
         mouse_tile: Tuple[int, int] | None = None
 
         while True:
@@ -521,6 +559,8 @@ def main() -> None:
                 passwall_primed=passwall_primed, camo_active=camo_active,
                 decoy_primed=decoy_primed, mouse_tile=mouse_tile,
                 silence_steps=silence_steps,
+                elapsed=time.monotonic() - run_start_time,
+                action_count=action_count,
             )
             context.present(console)
 
@@ -546,6 +586,7 @@ def main() -> None:
                             log.debug(f"Decoy placement failed: mouse_tile={mouse_tile}")
                         decoy_primed = False
                         # Decoy use is a player action — enemies take a turn
+                        action_count += 1
                         for enemy in enemies:
                             enemy.take_turn(game_map, enemies)
                         spotter = None if camo_active else next(
@@ -572,6 +613,8 @@ def main() -> None:
                             decoy_primed = False
                             silence_steps = 0
                             moved_diagonally = 0
+                            run_start_time = time.monotonic()
+                            action_count = 0
                             break
 
                 if isinstance(event, tcod.event.KeyDown):
@@ -709,6 +752,8 @@ def main() -> None:
                             show_level_complete(console, context, level)
 
                             if level >= 10:
+                                final_elapsed = time.monotonic() - run_start_time
+                                show_run_complete(console, context, final_elapsed, action_count)
                                 if not moved_diagonally:
                                     play_scene(console, context, _asset(os.path.join("dialogue", "secret_ending.txt")))
                                 else:
@@ -753,6 +798,7 @@ def main() -> None:
                             noise_warning_turns -= 1
 
                         # Enemy turns
+                        action_count += 1
                         for enemy in enemies:
                             enemy.take_turn(game_map, enemies)
 
@@ -784,6 +830,8 @@ def main() -> None:
                             decoy_primed = False
                             silence_steps = 0
                             moved_diagonally = 0
+                            run_start_time = time.monotonic()
+                            action_count = 0
                             break
 
 
