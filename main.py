@@ -404,7 +404,7 @@ def show_title_screen(console, context) -> str:
                 deadline = time.monotonic() + IDLE_TIMEOUT  # reset on any key
                 if event.sym in (tcod.event.KeySym.RETURN, tcod.event.KeySym.KP_ENTER):
                     return "start"
-                if event.sym == tcod.event.KeySym.h:
+                if event.sym == tcod.event.KeySym.H:
                     show_help_screen(console, context)
                     deadline = time.monotonic() + IDLE_TIMEOUT
                 if event.sym == tcod.event.KeySym.ESCAPE:
