@@ -507,6 +507,7 @@ def main() -> None:
         camo_active: bool = False
         decoy_primed: bool = False
         silence_steps: int = 0
+        moved_diagonally: bool = False
         mouse_tile: Tuple[int, int] | None = None
 
         while True:
@@ -567,6 +568,7 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
+                            moved_diagonally = False
                             break
 
                 if isinstance(event, tcod.event.KeyDown):
@@ -586,6 +588,7 @@ def main() -> None:
                     #     decoy_primed = False
                     #     silence_steps = 0
                     #     flash_primed = False
+                    #     moved_diagonally = False
                     #     break
 
                     if event.sym == tcod.event.KeySym.f:
@@ -680,6 +683,10 @@ def main() -> None:
                         if moved and (dx != 0 or dy != 0):
                             camo_active = False
 
+                        # Track whether the player has ever moved diagonally
+                        if moved and dx != 0 and dy != 0:
+                            moved_diagonally = True
+
                         # Silence counts down on each actual step
                         if moved and (dx != 0 or dy != 0) and silence_steps > 0:
                             silence_steps -= 1
@@ -705,7 +712,10 @@ def main() -> None:
                             show_level_complete(console, context, level)
 
                             if level >= 10:
-                                play_scene(console, context, _asset(os.path.join("dialogue", "ending.txt")))
+                                if not moved_diagonally:
+                                    play_scene(console, context, _asset(os.path.join("dialogue", "secret_ending.txt")))
+                                else:
+                                    play_scene(console, context, _asset(os.path.join("dialogue", "ending.txt")))
                                 return  # game ends after level 10
 
                             level += 1
@@ -775,6 +785,7 @@ def main() -> None:
                             camo_active = False
                             decoy_primed = False
                             silence_steps = 0
+                            moved_diagonally = False
                             break
 
 
