@@ -12,6 +12,8 @@ SOUNDS_DIR = resource_path("sounds")
 _bgm_path = None
 _sfx = {}
 _initialized = False
+_music_volume = 0.6
+_sfx_volume = 0.6
 
 def init_audio():
     global _initialized, _bgm_path, _sfx
@@ -56,13 +58,31 @@ def init_audio():
 
     _initialized = True
 
-def play_bgm(loop=-1, volume=0.6):
+def get_music_volume() -> float:
+    return _music_volume
+
+def set_music_volume(vol: float) -> None:
+    global _music_volume
+    _music_volume = max(0.0, min(1.0, round(vol, 1)))
+    try:
+        pygame.mixer.music.set_volume(_music_volume)
+    except Exception:
+        pass
+
+def get_sfx_volume() -> float:
+    return _sfx_volume
+
+def set_sfx_volume(vol: float) -> None:
+    global _sfx_volume
+    _sfx_volume = max(0.0, min(1.0, round(vol, 1)))
+
+def play_bgm(loop=-1):
     if not _initialized:
         init_audio()
     if _bgm_path:
         try:
             pygame.mixer.music.load(_bgm_path)
-            pygame.mixer.music.set_volume(volume)
+            pygame.mixer.music.set_volume(_music_volume)
             pygame.mixer.music.play(loop)
         except Exception:
             pass
@@ -78,10 +98,8 @@ def play_sfx(name, volume=1.0):
         init_audio()
     s = _sfx.get(name)
     if s:
-        s.set_volume(volume)
+        s.set_volume(volume * _sfx_volume)
         try:
             s.play()
         except Exception:
             pass
-    else:
-        return
