@@ -1,4 +1,4 @@
-Made with Python and Libcotd
+Made with Python and Libtcod
 
 Instructions for running with python:
 - Clone this Repository and export it as the folder "solo-shipping"
